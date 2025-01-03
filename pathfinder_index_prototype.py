@@ -2,6 +2,8 @@ import sqlite3
 import PyPDF2
 import re
 import PyQt5.QtWidgets as qt
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QPushButton, QListWidget, QListWidgetItem
+from PyQt5.QtCore import Qt
 import subprocess
 
 # Step 1: Extract data from PDFs
@@ -48,7 +50,7 @@ def search_terms(query, db_path="documents.db"):
 
 # Step 4: Open PDF at specific page
 def open_pdf(path, page):
-    subprocess.run(["evince", f"--page-label={page}", path])
+    subprocess.run(["qpdfview", f"{path}#{page}"])
 
 # Step 5: GUI for searching and previewing
 class PDFSearchApp(qt.QWidget):
@@ -61,6 +63,9 @@ class PDFSearchApp(qt.QWidget):
         self.results_list = qt.QListWidget(self)
         self.search_button = qt.QPushButton("Search", self)
         self.search_button.clicked.connect(self.search)
+
+        # Connect the itemClicked signal to a handler
+        self.results_list.itemClicked.connect(self.open_selected_pdf)
 
         layout = qt.QVBoxLayout()
         layout.addWidget(self.search_box)
@@ -75,10 +80,23 @@ class PDFSearchApp(qt.QWidget):
         results = search_terms(query)
         self.results_list.clear()
         for result in results:
-            self.results_list.addItem(f"{result[1]} - Page {result[2]}: {result[3]}")
+            print(result[2])
+            item_text = f"Page {result[2]}: {result[3]}"
+            item = QListWidgetItem(item_text)
+            
+            # Store file path and page number as metadata in the item
+            item.setData(Qt.UserRole, (result[2], result[3]))
+            self.results_list.addItem(item)
 
-process_pdf("./data/PZO9279 Andoran, Birthplace of Freedom.pdf")
-process_pdf("./data/PZO1111 Campaign Setting.pdf")
+    def open_selected_pdf(self, item):
+        # Retrieve the file path and page number from the clicked item
+        file_path, page_number = item.data(Qt.UserRole)
+        
+        # Call the open_pdf function with the extracted data
+        open_pdf(file_path, page_number)
+
+#process_pdf("./data/PZO9279 Andoran, Birthplace of Freedom.pdf")
+#process_pdf("./data/PZO1111 Campaign Setting.pdf")
 app = qt.QApplication([])
 window = PDFSearchApp()
 window.show()
